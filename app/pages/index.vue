@@ -1,33 +1,10 @@
 <script setup lang="ts">
-type WpFeaturedMedia = {
-  source_url?: string
-  media_details?: {
-    sizes?: Record<string, { source_url?: string }>
-  }
-}
-
-type WpPost = {
+type LatestPostItem = {
   id: number
   link: string
   date: string
-  title: { rendered: string }
-  _embedded?: { 'wp:featuredmedia'?: WpFeaturedMedia[] }
-}
-
-function stripTags(input: string) {
-  return input.replace(/<[^>]*>/g, '')
-}
-
-function decodeHtmlEntities(input: string) {
-  return input
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+  title: string
+  thumbUrl: string | null
 }
 
 function formatDateId(dateIso: string) {
@@ -36,23 +13,8 @@ function formatDateId(dateIso: string) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function getSquareThumb(post: WpPost) {
-  const media = post._embedded?.['wp:featuredmedia']?.[0]
-  const sizes = media?.media_details?.sizes
-  return (
-    sizes?.medium_large?.source_url ||
-    sizes?.medium?.source_url ||
-    sizes?.thumbnail?.source_url ||
-    media?.source_url ||
-    null
-  )
-}
-
-const WP_POSTS_ENDPOINT =
-  'https://denpasastra.net/wp-json/wp/v2/posts?per_page=12&_embed=1'
-
 const { data, error } = await useAsyncData('denpasastra:latest-posts', () =>
-  $fetch<WpPost[]>(WP_POSTS_ENDPOINT, {
+  $fetch<LatestPostItem[]>('/api/latest-posts', {
     headers: { Accept: 'application/json' }
   })
 )
@@ -96,12 +58,16 @@ useHead({
         :href="post.link"
         rel="noopener noreferrer"
       >
-        <div class="thumb" :class="{ 'thumb--empty': !getSquareThumb(post) }">
+        <div class="thumb" :class="{ 'thumb--empty': !post.thumbUrl }">
           <img
-            v-if="getSquareThumb(post)"
+            v-if="post.thumbUrl"
             class="thumb-img"
-            :src="getSquareThumb(post)!"
-            :alt="decodeHtmlEntities(stripTags(post.title.rendered))"
+            :src="post.thumbUrl"
+            :srcset="`${post.thumbUrl} 320w, ${post.thumbUrl} 480w`"
+            sizes="84px"
+            width="96"
+            height="96"
+            :alt="post.title"
             loading="lazy"
             decoding="async"
             referrerpolicy="no-referrer"
@@ -111,7 +77,7 @@ useHead({
 
         <div class="meta">
           <h2 class="title">
-            {{ decodeHtmlEntities(stripTags(post.title.rendered)) }}
+            {{ post.title }}
           </h2>
           <p class="date">{{ formatDateId(post.date) }}</p>
         </div>
