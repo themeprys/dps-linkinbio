@@ -13,10 +13,13 @@ function formatDateId(dateIso: string) {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-const { data, error } = await useAsyncData('denpasastra:latest-posts', () =>
-  $fetch<LatestPostItem[]>('/api/latest-posts', {
-    headers: { Accept: 'application/json' }
-  })
+const { data, error, pending } = useLazyAsyncData(
+  'denpasastra:latest-posts',
+  () =>
+    $fetch<LatestPostItem[]>('/api/latest-posts', {
+      headers: { Accept: 'application/json' }
+    }),
+  { server: false }
 )
 
 const posts = computed(() => (data.value ?? []).slice(0, 12))
@@ -48,6 +51,22 @@ useHead({
     <section v-if="error" class="state">
       <h2>Gagal memuat postingan</h2>
       <p>Coba refresh halaman.</p>
+    </section>
+
+    <section
+      v-else-if="pending"
+      class="list list--skeleton"
+      aria-busy="true"
+      aria-label="Memuat postingan terbaru"
+    >
+      <div v-for="n in 12" :key="n" class="card card--skeleton">
+        <div class="skeleton-thumb" aria-hidden="true" />
+        <div class="skeleton-meta">
+          <div class="skeleton-line skeleton-line--title" />
+          <div class="skeleton-line skeleton-line--title short" />
+          <div class="skeleton-line skeleton-line--date" />
+        </div>
+      </div>
     </section>
 
     <section v-else class="list" aria-label="Daftar postingan terbaru">
@@ -184,6 +203,73 @@ useHead({
   gap: 10px;
 }
 
+.list--skeleton {
+  pointer-events: none;
+}
+
+.card--skeleton {
+  cursor: default;
+}
+
+.skeleton-thumb {
+  width: 84px;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(
+    110deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.1) 45%,
+    rgba(0, 0, 0, 0.06) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+.skeleton-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    110deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.09) 45%,
+    rgba(0, 0, 0, 0.06) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+.skeleton-line--title {
+  max-width: 100%;
+}
+
+.skeleton-line--title.short {
+  max-width: 72%;
+}
+
+.skeleton-line--date {
+  width: 96px;
+  height: 10px;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .card {
   display: grid;
   grid-template-columns: 84px 1fr;
@@ -281,6 +367,11 @@ useHead({
   }
 
   .thumb {
+    width: 96px;
+    border-radius: 16px;
+  }
+
+  .skeleton-thumb {
     width: 96px;
     border-radius: 16px;
   }
